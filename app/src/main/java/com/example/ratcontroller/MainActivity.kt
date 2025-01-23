@@ -7,10 +7,10 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Bundle
 import android.os.StrictMode
+import android.widget.Button
 import android.widget.TextView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.PrintWriter
 import java.net.Socket
@@ -22,6 +22,7 @@ class MainActivity : Activity(), SensorEventListener {
 
     private lateinit var gyroscopeTextView: TextView
     private lateinit var directionTextView: TextView
+    private lateinit var layDownButton: Button
 
     private var lastSentTime: Long = 0
     private val sendInterval: Long = 1000  // Czas w milisekundach (np. 1000 ms = 1 sekunda)
@@ -33,6 +34,7 @@ class MainActivity : Activity(), SensorEventListener {
         // Inicjalizacja
         gyroscopeTextView = findViewById(R.id.gyroscope_text)
         directionTextView = findViewById(R.id.direction_text)
+        layDownButton = findViewById(R.id.lay_down_button)
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         sensor = sensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
 
@@ -43,6 +45,13 @@ class MainActivity : Activity(), SensorEventListener {
         // Zezwolenie na operacje sieciowe w głównym wątku (niezalecane w produkcji)
         val policy = StrictMode.ThreadPolicy.Builder().permitAll().build()
         StrictMode.setThreadPolicy(policy)
+
+        // Obsługa kliknięcia przycisku "Lay Down"
+        layDownButton.setOnClickListener {
+            CoroutineScope(Dispatchers.IO).launch {
+                sendDirectionToServer("Rest")
+            }
+        }
     }
 
     override fun onResume() {
