@@ -6,7 +6,13 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Bundle
+import android.os.StrictMode
 import android.widget.TextView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.PrintWriter
+import java.net.Socket
 
 class MainActivity : Activity(), SensorEventListener {
 
@@ -29,6 +35,10 @@ class MainActivity : Activity(), SensorEventListener {
         if (sensor == null) {
             gyroscopeTextView.text = "Game Rotation Vector sensor not available on this device."
         }
+
+        // Zezwolenie na operacje sieciowe w głównym wątku (niezalecane w produkcji)
+        val policy = StrictMode.ThreadPolicy.Builder().permitAll().build()
+        StrictMode.setThreadPolicy(policy)
     }
 
     override fun onResume() {
@@ -67,6 +77,11 @@ class MainActivity : Activity(), SensorEventListener {
                 // Określenie kierunku na podstawie kątów pochylenia i przechylenia
                 val direction = getDirectionFromOrientation(pitch, roll)
                 directionTextView.text = direction
+
+                // Wysłanie kierunku do Raspberry Pi
+                CoroutineScope(Dispatchers.IO).launch {
+                    sendDirectionToServer(direction)
+                }
             }
         }
     }
@@ -83,7 +98,17 @@ class MainActivity : Activity(), SensorEventListener {
         }
     }
 
+    private fun sendDirectionToServer(direction: String) {
+        try {
+            val socket = Socket("192.168.34.27", 1100) // Podaj IP i port Raspberry Pi
+            val out = PrintWriter(socket.getOutputStream(), true)
+            out.println(direction)
+            socket.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
     }
 }
-
