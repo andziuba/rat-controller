@@ -27,9 +27,6 @@ class MainActivity : Activity(), SensorEventListener {
     private var lastSentTime: Long = 0
     private val sendInterval: Long = 2000  // Czas w milisekundach (np. 1000 ms = 1 sekunda)
 
-    private var socket: Socket? = null
-    private var out: PrintWriter? = null
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -49,14 +46,6 @@ class MainActivity : Activity(), SensorEventListener {
         val policy = StrictMode.ThreadPolicy.Builder().permitAll().build()
         StrictMode.setThreadPolicy(policy)
 
-        // Nawiązanie połączenia z serwerem
-        try {
-            socket = Socket("192.168.34.27", 1100) // Podaj IP i port Raspberry Pi
-            out = PrintWriter(socket?.getOutputStream(), true)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
         // Obsługa kliknięcia przycisku "Lay Down"
         layDownButton.setOnClickListener {
             CoroutineScope(Dispatchers.IO).launch {
@@ -75,11 +64,6 @@ class MainActivity : Activity(), SensorEventListener {
     override fun onPause() {
         super.onPause()
         sensorManager.unregisterListener(this)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        closeConnection()
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
@@ -133,16 +117,10 @@ class MainActivity : Activity(), SensorEventListener {
 
     private fun sendDirectionToServer(direction: String) {
         try {
-            out?.println(direction)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun closeConnection() {
-        try {
-            out?.close()
-            socket?.close()
+            val socket = Socket("192.168.34.27", 1100) // Podaj IP i port Raspberry Pi
+            val out = PrintWriter(socket.getOutputStream(), true)
+            out.println(direction)
+            socket.close()
         } catch (e: Exception) {
             e.printStackTrace()
         }
