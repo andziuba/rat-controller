@@ -9,7 +9,9 @@ import android.os.Bundle
 import android.os.StrictMode
 import android.widget.Button
 import android.widget.TextView
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.PrintWriter
 import java.net.Socket
 
@@ -22,11 +24,9 @@ class MainActivity : Activity(), SensorEventListener {
     private lateinit var directionTextView: TextView
     private lateinit var layDownButton: Button
 
-    private lateinit var socket: Socket
-    private lateinit var out: PrintWriter
-
-    private var lastSentTime = 0L
-    private val sendInterval = 1000L // 1 sekunda
+    private var lastSentTime: Long = 0
+    private val sendInterval: Long = 2000
+    private var lastDirection: String = "Neutral"  // Ostatnio wysłany kierunek
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,16 +47,6 @@ class MainActivity : Activity(), SensorEventListener {
         val policy = StrictMode.ThreadPolicy.Builder().permitAll().build()
         StrictMode.setThreadPolicy(policy)
 
-        // Połączenie z serwerem na początku
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                socket = Socket("192.168.34.27", 1100) // Podaj IP i port Raspberry Pi
-                out = PrintWriter(socket.getOutputStream(), true)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-
         // Obsługa kliknięcia przycisku "Lay Down"
         layDownButton.setOnClickListener {
             CoroutineScope(Dispatchers.IO).launch {
@@ -75,18 +65,6 @@ class MainActivity : Activity(), SensorEventListener {
     override fun onPause() {
         super.onPause()
         sensorManager.unregisterListener(this)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                out.close()
-                socket.close()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
@@ -114,9 +92,11 @@ class MainActivity : Activity(), SensorEventListener {
                 val direction = getDirectionFromOrientation(pitch, roll)
                 directionTextView.text = direction
 
-                // Wysłanie kierunku do Raspberry Pi z opóźnieniem
-                if (System.currentTimeMillis() - lastSentTime >= sendInterval) {
-                    lastSentTime = System.currentTimeMillis()
+                // Wysłanie kierunku do Raspberry Pi z interwałem czasowym, jeśli kierunek się zmienił
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastSentTime > sendInterval && direction != lastDirection) {
+                    lastSentTime = currentTime
+                    lastDirection = direction
                     CoroutineScope(Dispatchers.IO).launch {
                         sendDirectionToServer(direction)
                     }
@@ -139,7 +119,10 @@ class MainActivity : Activity(), SensorEventListener {
 
     private fun sendDirectionToServer(direction: String) {
         try {
+            val socket = Socket("192.168.34.27", 1100) // Podaj IP i port Raspberry Pi
+            val out = PrintWriter(socket.getOutputStream(), true)
             out.println(direction)
+            socket.close()
         } catch (e: Exception) {
             e.printStackTrace()
         }
