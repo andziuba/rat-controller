@@ -27,6 +27,8 @@ class MainActivity : Activity(), SensorEventListener {
     private var lastSentTime: Long = 0
     private val sendInterval: Long = 2000  // Czas w milisekundach (np. 1000 ms = 1 sekunda)
 
+    val socket = Socket("192.168.34.27", 1100)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -49,7 +51,7 @@ class MainActivity : Activity(), SensorEventListener {
         // Obsługa kliknięcia przycisku "Lay Down"
         layDownButton.setOnClickListener {
             CoroutineScope(Dispatchers.IO).launch {
-                sendDirectionToServer("Lay Down")
+                sendDirectionToServer("Rest")
             }
         }
     }
@@ -117,7 +119,7 @@ class MainActivity : Activity(), SensorEventListener {
 
     private fun sendDirectionToServer(direction: String) {
         try {
-            val socket = Socket("192.168.34.27", 1100) // Podaj IP i port Raspberry Pi
+             // Podaj IP i port Raspberry Pi
             val out = PrintWriter(socket.getOutputStream(), true)
             out.println(direction)
             socket.close()
