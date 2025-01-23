@@ -10,6 +10,7 @@ import android.os.StrictMode
 import android.widget.TextView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.PrintWriter
 import java.net.Socket
@@ -21,6 +22,9 @@ class MainActivity : Activity(), SensorEventListener {
 
     private lateinit var gyroscopeTextView: TextView
     private lateinit var directionTextView: TextView
+
+    private var lastSentTime: Long = 0
+    private val sendInterval: Long = 1000  // Czas w milisekundach (np. 1000 ms = 1 sekunda)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -78,16 +82,20 @@ class MainActivity : Activity(), SensorEventListener {
                 val direction = getDirectionFromOrientation(pitch, roll)
                 directionTextView.text = direction
 
-                // Wysłanie kierunku do Raspberry Pi
-                CoroutineScope(Dispatchers.IO).launch {
-                    sendDirectionToServer(direction)
+                // Wysłanie kierunku do Raspberry Pi z interwałem czasowym
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastSentTime > sendInterval) {
+                    lastSentTime = currentTime
+                    CoroutineScope(Dispatchers.IO).launch {
+                        sendDirectionToServer(direction)
+                    }
                 }
             }
         }
     }
 
     private fun getDirectionFromOrientation(pitch: Float, roll: Float): String {
-        val threshold = 15  // Próg czułości (do dostosowania)
+        val threshold = 15  // Próg czułości
 
         return when {
             pitch > threshold -> "Forward"
