@@ -135,7 +135,7 @@ class MainActivity : Activity(), SensorEventListener {
 
     private suspend fun listenForMessagesFromServer() {
         try {
-            val serverSocket = ServerSocket(1101) // Port do nasłuchiwania wiadomości od Raspberry Pi
+            val serverSocket = ServerSocket(1100) // Port do nasłuchiwania wiadomości od Raspberry Pi
             while (true) {
                 val clientSocket = serverSocket.accept()
                 val input = BufferedReader(InputStreamReader(clientSocket.getInputStream()))
