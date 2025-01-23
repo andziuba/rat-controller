@@ -25,8 +25,7 @@ class MainActivity : Activity(), SensorEventListener {
     private lateinit var layDownButton: Button
 
     private var lastSentTime: Long = 0
-    private val sendInterval: Long = 2000
-    private var lastDirection: String = "Neutral"  // Ostatnio wysłany kierunek
+    private val sendInterval: Long = 2000  // Czas w milisekundach (np. 1000 ms = 1 sekunda)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,7 +49,7 @@ class MainActivity : Activity(), SensorEventListener {
         // Obsługa kliknięcia przycisku "Lay Down"
         layDownButton.setOnClickListener {
             CoroutineScope(Dispatchers.IO).launch {
-                sendDirectionToServer("Rest")
+                sendDirectionToServer("Lay Down")
             }
         }
     }
@@ -92,11 +91,10 @@ class MainActivity : Activity(), SensorEventListener {
                 val direction = getDirectionFromOrientation(pitch, roll)
                 directionTextView.text = direction
 
-                // Wysłanie kierunku do Raspberry Pi z interwałem czasowym, jeśli kierunek się zmienił
+                // Wysłanie kierunku do Raspberry Pi z interwałem czasowym
                 val currentTime = System.currentTimeMillis()
-                if (currentTime - lastSentTime > sendInterval && direction != lastDirection) {
+                if (currentTime - lastSentTime > sendInterval) {
                     lastSentTime = currentTime
-                    lastDirection = direction
                     CoroutineScope(Dispatchers.IO).launch {
                         sendDirectionToServer(direction)
                     }
