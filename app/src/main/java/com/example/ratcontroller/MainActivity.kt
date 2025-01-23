@@ -12,8 +12,12 @@ import android.widget.TextView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.io.PrintWriter
 import java.net.Socket
+import java.net.ServerSocket
 
 class MainActivity : Activity(), SensorEventListener {
 
@@ -24,7 +28,8 @@ class MainActivity : Activity(), SensorEventListener {
     private lateinit var directionTextView: TextView
     private lateinit var layDownButton: Button
 
-    private var lastDirection: String = "Neutral"  // Ostatnio wysłany kierunek
+    @Volatile
+    private var sendDirectionEnabled = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,6 +55,11 @@ class MainActivity : Activity(), SensorEventListener {
             CoroutineScope(Dispatchers.IO).launch {
                 sendDirectionToServer("Rest")
             }
+        }
+
+        // Uruchomienie wątku nasłuchującego na wiadomości od Raspberry Pi
+        CoroutineScope(Dispatchers.IO).launch {
+            listenForMessagesFromServer()
         }
     }
 
@@ -90,9 +100,8 @@ class MainActivity : Activity(), SensorEventListener {
                 val direction = getDirectionFromOrientation(pitch, roll)
                 directionTextView.text = direction
 
-                // Wysłanie kierunku do Raspberry Pi, jeśli kierunek się zmienił
-                if (direction != lastDirection) {
-                    lastDirection = direction
+                // Wysłanie kierunku do Raspberry Pi tylko gdy otrzymaliśmy wiadomość "pls"
+                if (sendDirectionEnabled) {
                     CoroutineScope(Dispatchers.IO).launch {
                         sendDirectionToServer(direction)
                     }
@@ -119,6 +128,29 @@ class MainActivity : Activity(), SensorEventListener {
             val out = PrintWriter(socket.getOutputStream(), true)
             out.println(direction)
             socket.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private suspend fun listenForMessagesFromServer() {
+        try {
+            val serverSocket = ServerSocket(1101) // Port do nasłuchiwania wiadomości od Raspberry Pi
+            while (true) {
+                val clientSocket = serverSocket.accept()
+                val input = BufferedReader(InputStreamReader(clientSocket.getInputStream()))
+                val message = input.readLine()
+                if (message == "PLS") {
+                    withContext(Dispatchers.Main) {
+                        sendDirectionEnabled = true
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        sendDirectionEnabled = false
+                    }
+                }
+                clientSocket.close()
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
